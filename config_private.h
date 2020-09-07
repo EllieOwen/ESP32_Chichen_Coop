@@ -1,2 +1,2 @@
-#define HOME_SSID "Schmidt"
-#define WIFI_PASSWORD "schmidt6234"
+#define HOME_SSID "YourNetwork"
+#define WIFI_PASSWORD "YourPassword"
