@@ -16,7 +16,7 @@ class Door
   int _extendPin;
   int _retractPin;
   //int _state;
-  int _strokeLength = 55000;//in millis, the time it takes to complete a full stroke
+  int _strokeLength;//the time in millis it takes to complete a full stroke
   unsigned long _previousTime;
   unsigned long _now;
  
@@ -25,12 +25,14 @@ class Door
   // and initializes the member variables and state
   public:
   int State;
+  int flag;
   int currentStroke;//millis, where on the stroke the door is between 0 for closed and the strokeLength for fully opend
-  
-  Door(int pin1, int pin2, int state)
+  int Stopped;
+  Door(int pin1, int pin2, int stroke, int state)
   {
   _extendPin = pin1;
   _retractPin = pin2;
+  _strokeLength = stroke;
   State = state;
   pinMode(_extendPin, OUTPUT);  
   pinMode(_retractPin, OUTPUT);   
@@ -63,6 +65,7 @@ class Door
       digitalWrite(_retractPin, LOW);
       digitalWrite(_extendPin, LOW);
       State = 0;//
+      
   }
 
   int EndOfStroke()
@@ -76,6 +79,8 @@ class Door
         _previousTime = _now;
         if (currentStroke >= _strokeLength){
           currentStroke = _strokeLength - 1;
+          flag = 1;
+          Stop();
           return 1;
         }
         else {
@@ -90,6 +95,8 @@ class Door
         _previousTime = _now;
         if (currentStroke <= 0){
           currentStroke = 1;
+          flag = 1;
+          Stop();
           return 1;
         }
         else {

@@ -5,7 +5,7 @@ class PushButton
   int buttonState;
   int lastButtonState;
   unsigned long lastDebounceTime;
-  unsigned long debounceDelay = 20;
+  unsigned long debounceDelay = 10;
   int reading;
 
   public:

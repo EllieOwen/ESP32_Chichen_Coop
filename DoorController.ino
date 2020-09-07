@@ -1,192 +1,170 @@
-#include <WiFi.h>
+
 #include <Time.h>
 #include <TimeLib.h>
+#include "config_private.h"
 #include "config.h"
-#include "Door.h"
+#include "Initialize_Time.h"
 #include "PushButton.h"
-#include "Clock.h"
-//#include "SimpleWiFiServer.h"
+#include "Door.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH1106.h>//https://github.com/nhatuan84/esp32-sh1106-oled
 
-//Door will be controlled by one button.
-//Door will be controlled by automatic clock
-//Door will be controlled by WiFi on LAN
-//
-////for NodeMCU ESP32S
-//#define OLED_SDA 21
-//#define OLED_SCL 22
-//#define OPEN_PIN 4
-//#define CLOSE_PIN 15
-//#define BUTTON_PIN 2
-
-//#define TIME_SHIFT -14400 //seconds from GMT//Eastern Daylight Savings adjustment
-
-
-Clock myClock(1);
-//SimpleWiFiServer mySimpleWiFiServer(1);
-
-Door door1(CLOSE_PIN, OPEN_PIN, 0);
+Door door1(CLOSE_PIN, OPEN_PIN, 55000, 0);
 PushButton button1(BUTTON_PIN);
 Adafruit_SH1106 display(OLED_SDA, OLED_SCL);
 
-int previousState = 1;//assumes the door started off fully closed
 time_t t;
-int t_today;//seconds since midnight today
-int t_open;//seconds after midnight to open door
-int t_close;//seconds after midnight to close door
-time_t openDoor;
-time_t closeDoor;
-int openHour = 8;
-int openMinute = 0;
-int closeHour = 21;
-int closeMinute = 0;
-int autoOpen;
-int autoClose;
-int wiFiServerReturn;
-String myTime;
+int t_today;//seconds since midnight
+int t_open;//seconds after midnight
+int t_close;//seconds after midnight
 char buf1[20];
-String response;
-int doorMoving = 1;
+int openHour = OPEN_HOUR;
+int openMinute = OPEN_MINUTE;
+int closeHour = CLOSE_HOUR;
+int closeMinute = CLOSE_MINUTE;
+String state;
+int flag_auto_open = 1;//prevent repetative auto opening of the door
+int flag_auto_close = 1;//prevent repetative auto closing of the door
+int previousState;
 
-//WiFiServer server(80);
-
-void setup()
-{
+void setup() {
   Serial.begin(115200);
+  delay(5000);
+  Serial.println("Serial begin");
+  
   display.begin(SH1106_SWITCHCAPVCC, 0x3C); 
   display.clearDisplay();
-  //myClock.SetTimeFromServer();
-  //Serial.print("Response is ");
-  //Serial.println(response);
-  t = time(NULL) + TIME_SHIFT;//seconds since Jan 1, 1970 local time
-  t_today = t - previousMidnight(t);//seconds since midnight
-  Serial.print("time =   ");
-  Serial.print(t);
-  Serial.print("  seconds since midnight = ");
-  Serial.println(t_today);
-  t_open = (openHour * 3600) + (openMinute * 60);
-  t_close = (closeHour * 3600) + (closeMinute * 60);
-  openDoor = (openHour * 3600) + (openMinute * 60);
-  closeDoor = (closeHour * 3600) + (closeMinute * 60);
-  //openDoor = t + 10;
-  //closeDoor = openDoor + 60;
-  Serial.print("open at  ");
-  Serial.println(openDoor);
-  Serial.println(t_open);  
-  Serial.print("close at ");
-  Serial.println(closeDoor);
-  Serial.println(t_close);
   
-  if (t_today >= openDoor){
-    autoOpen = 0;
-    autoClose = 1;
-  }//if
-  else {
-    autoOpen = 1;
-    autoClose = 0;
-    
-  }//else
-
-  if (t_today >= closeDoor){
-    autoOpen = 1;
-    autoClose = 0;
-  }//if
-
-//  mySimpleWiFiServer.Begin();
-    
-}//setup
-
-void loop()
-{
-
-//  wiFiServerReturn = mySimpleWiFiServer.ListenForClients();
-//  switch (wiFiServerReturn){
-//    case 1:
-//      door1.Open();
-//    break;
-//    case 2:
-//      door1.Close();
-//    break;
-//    case 0:
-//    door1.Stop();
-//    break;
-//    default:
-//    break;
-//  }
-  
-  //t = time(NULL) + TIME_SHIFT;
+  Clock myClock(1);
   t = time(NULL) + TIME_SHIFT;
   t_today = t - previousMidnight(t);
+  Serial.println("time = ");
+  Serial.println(t);
+  Serial.println(t_today);
+  sprintf(buf1, "%02d:%02d:%02d",  hour(t_today), minute(t_today), second(t_today));
+  Serial.println(buf1);
+  
+  t_open = (openHour * 3600) + (openMinute * 60);
+  t_close = (closeHour * 3600) + (closeMinute * 60);
+  sprintf(buf1, "Open at %02d:%02d:%02d",  hour(t_open), minute(t_open), second(t_open));
+  Serial.println(buf1);
+  sprintf(buf1, "Close at %02d:%02d:%02d",  hour(t_close), minute(t_close), second(t_close));
+  Serial.println(buf1);
+
+  //check if the door should be open or closed
+  if (t_today >= t_open  && t_today < t_close){
+    Serial.println("Open the door");
+    door1.currentStroke = 0;
+    door1.Open();
+    state = "opening";
+    flag_auto_open = 0;
+    previousState = 1;//previously was closed  
+  }
+  else {
+    Serial.println("Close the door");
+    door1.currentStroke = 55000;
+    door1.Close();
+    state = "closing";
+    flag_auto_open = 0;
+    flag_auto_close = 0;
+    previousState = 2;//previously was open   
+  }
+  
+
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  int t_previous;
+  
+  t = time(NULL) + TIME_SHIFT;
+  t_today = t - previousMidnight(t);
+  if (t_previous >= t_today) {//new day, might need to test the special case of midnight opening/closing
+    flag_auto_open = 1;
+    flag_auto_close = 1;
+  }
+  t_previous = t_today;
   
   sprintf(buf1, "%02d:%02d:%02d",  hour(t), minute(t), second(t));
   Serial.print("current time is ");
   Serial.println(buf1);
-  
-  //this code assumes the door will open once in the morning and close once in the evening
-  if (autoOpen == 1 && t_today >= t_open)
-  {
-    autoOpen = 0;
-    autoClose = 1;
-    //openDoor += 86400;
-    //openDoor += 120;
-    door1.Open();
-    Serial.print(" Auto Opened at "); 
-     myClock.PrintLocalTime();
-  }
-  else {
-   // Serial.println("not autoOpen");
-  }
-  
-  if (autoClose == 1 && t_today >= t_close)
-  {
-    autoOpen = 1;
-    autoClose = 0;
-    //closeDoor += 86400;
-    //closeDoor += 120;
-    door1.Close();
-    Serial.print(" Auto Closed at ");
-    myClock.PrintLocalTime();
-  }
-  else{
-   // Serial.println("not autoClose");
-  }
 
   
-  //myClock.PrintLocalTime();
-  if (door1.EndOfStroke()){
+  //oled display stuff
+
+  /* set text size, color, cursor position, 
+  set buffer with  Hello world and show off*/
+  display.setTextSize(2);
+  display.setTextColor(WHITE);
+  display.setCursor(0,0);
+  
+  sprintf(buf1, "%02d:%02d:%02d",  hour(t_today), minute(t_today), second(t_today));
+  display.println(buf1);
+
+  display.setTextSize(1);
+  display.println("Open Time");
+  display.setTextSize(2);
+  sprintf(buf1, "%02d:%02d",  hour(t_open), minute(t_open));
+  display.println(buf1);
+  
+  display.setTextSize(1);
+  display.println("Close Time");
+  display.setTextSize(2);
+  sprintf(buf1, "%02d:%02d",  hour(t_close), minute(t_close));
+  display.println(buf1);
+
+  display.setCursor(80,32);
+  display.setTextSize(4);
+  //display.println(50);
+  display.println(door1.currentStroke/1000);
+  
+  
+  display.display();
+  display.clearDisplay();
+  //oled display stuff end
+
+  //check if the door is scheduled to open or close
+  //  
+  if (t_today >= t_open && flag_auto_open){
+    door1.Open();
+    flag_auto_open = 0;
+    previousState = 1;
+  }
+  if (t_today >= t_close && flag_auto_close){
+    door1.Close();
+    flag_auto_close = 0;
+    flag_auto_open = 0;//this should already be 0
+    previousState = 2;
+  }
+  //
+
+  //check if the door is at the end of the stroke while opening or closing
+  if (door1.EndOfStroke() && door1.flag){
     switch (previousState){
     case 1:
+    Serial.print("previous State 1");
       previousState = 2;
     break;
     case 2:
+    Serial.print("previous State 2");
       previousState = 1;
     break;
     default:
     break;
     }
-    door1.Stop();
+    Serial.print(" end of stroke ");
+    door1.flag = 0 ;
   }
-//  else {
-//    doorMoving = 1;
-//    display.setTextSize(2);
-//    display.setTextColor(WHITE);
-//    display.setCursor(0,0);
-//    display.clearDisplay();
-//    sprintf(buf1, "%02d:%02d:%02d",  hour(t), minute(t), second(t));
-//    display.println(buf1);
-//    display.setTextSize(4);
-//    display.println(door1.currentStroke/1000);
-//    display.display();
-//    display.clearDisplay();
-//    
-//  }
+  //
+
+  //check if button was pressed
   
   if (button1.WasPressed())
   {//pressing the button will toggle through open, stop, close, stop, etc
    //if the door is opening or closing the button will stop the action
    //if the door is stopped the button will start the opposite action of before the stop
-  
+   //  
+   //delay(1000);
     switch (door1.State) {
     case 1:
     Serial.println("case 1");
@@ -221,58 +199,8 @@ void loop()
   }//if
 
 
-  //display stuff
+  
+  Serial.print(".");
+  //delay(1000);
 
-  /* set text size, color, cursor position, 
-  set buffer with  Hello world and show off*/
-  display.setTextSize(2);
-  display.setTextColor(WHITE);
-  display.setCursor(0,0);
-  
-  //display.println("Current Time");
-  //display.println(t_today);
-  
-
-  sprintf(buf1, "%02d:%02d:%02d",  hour(t_today), minute(t_today), second(t_today));
-  display.println(buf1);
-  //display.display();
-
-  display.setTextSize(1);
-  display.println("Open Time");
-  display.setTextSize(2);
-  sprintf(buf1, "%02d:%02d",  hour(openDoor), minute(openDoor));
-  display.println(buf1);
-  
-  display.setTextSize(1);
-  display.println("Close Time");
-  display.setTextSize(2);
-  sprintf(buf1, "%02d:%02d",  hour(closeDoor), minute(closeDoor));
-  display.println(buf1);
-
-  display.setCursor(80,32);
-  display.setTextSize(4);
-  display.println(door1.currentStroke/1000);
-  
-  
-  display.display();
-  display.clearDisplay();
-  
-//  // send data only when you receive data:
-//  if (Serial.available() > 0) {
-//    // read the incoming byte:
-//   // incomingByte = Serial.read();
-//   a = Serial.readString();
-//
-//    // say what you got:
-//    Serial.print("I received: ");
-//    Serial.println(a);
-//    display.clearDisplay();
-//    display.println(a);
-//    display.display();
-//    delay(2000);
-//    display.clearDisplay();
-//  }
-
-  
-  delay(10);//this delay is to slow down the looping
 }
