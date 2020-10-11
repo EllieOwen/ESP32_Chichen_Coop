@@ -6,12 +6,14 @@
 #define CLOSE_PIN 15
 #define BUTTON_PIN 2
 
-#define TIME_SHIFT -14400 //seconds from GMT//Eastern Daylight Savings adjustment
+//open and closing time based on 24 hour clock
 #define OPEN_HOUR 8
 #define OPEN_MINUTE 0
 #define CLOSE_HOUR 20
 #define CLOSE_MINUTE 30
 
-#define GMT_OFFSET -18000
-#define DAYLIGHT_SAVINGS_OFFSET 3600
+#define GMT_OFFSET -18000//seconds
+#define DAYLIGHT_SAVINGS_OFFSET 3600//seconds
 #define TIME_SHIFT -14400 //seconds from GMT//Eastern Daylight Savings adjustment
+
+#define STROKE_MILLIS 55000//millis to fully extend or retract actuator
