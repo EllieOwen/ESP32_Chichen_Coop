@@ -8,12 +8,13 @@
 #include "Door.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH1106.h>//https://github.com/nhatuan84/esp32-sh1106-oled
+//in my experience, some of the inexpensive oled displays on Amazon claiming to have a SSD1306 driver actually have a SH1106
 
-Door door1(CLOSE_PIN, OPEN_PIN, 55000, 0);
+Door door1(CLOSE_PIN, OPEN_PIN, STROKE_MILLIS, 0);
 PushButton button1(BUTTON_PIN);
 Adafruit_SH1106 display(OLED_SDA, OLED_SCL);
 
-time_t t;
+time_t t;//seconds since Jan 1, 1970
 int t_today;//seconds since midnight
 int t_open;//seconds after midnight
 int t_close;//seconds after midnight

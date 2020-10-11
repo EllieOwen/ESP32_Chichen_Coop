@@ -3,11 +3,12 @@ class Door
   //
   //Door will be controlled by two pins going to the relay.
   //Door can have 3 states:
-  //  0 = Stopped at some point between fully opened and fully closed
+  //  0 = Stopped at some point; fully opened, fully closed, or some point midway
   //  1 = Openning
   //  2 = Closing
   //The time for one full extention or retraction is the stroke time in seconds
-  //starting with zero seconds at fully closed state
+  //This is just so the relay doesn't need to be activated longer than neccesary
+  //Starting with zero seconds at fully closed state
 
   //Opening and closing the door will not stop other processes from happening
   
